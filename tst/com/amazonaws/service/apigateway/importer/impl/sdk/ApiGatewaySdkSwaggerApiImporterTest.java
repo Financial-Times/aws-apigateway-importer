@@ -14,14 +14,16 @@
  */
 package com.amazonaws.service.apigateway.importer.impl.sdk;
 
-import com.amazonaws.service.apigateway.importer.config.SwaggerApiImporterTestModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.wordnik.swagger.models.Response;
-import junit.framework.Assert;
 import org.apache.log4j.BasicConfigurator;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.amazonaws.service.apigateway.importer.config.SwaggerApiImporterTestModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+
+import io.swagger.models.Response;
+import junit.framework.Assert;
 
 public class ApiGatewaySdkSwaggerApiImporterTest {
 

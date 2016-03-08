@@ -14,34 +14,55 @@
  */
 package com.amazonaws.service.apigateway.importer.impl.sdk;
 
-import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
-import com.amazonaws.service.apigateway.importer.impl.SchemaTransformer;
-import com.amazonaws.services.apigateway.model.*;
-import com.google.inject.Inject;
-import com.wordnik.swagger.models.Operation;
-import com.wordnik.swagger.models.Path;
-import com.wordnik.swagger.models.RefModel;
-import com.wordnik.swagger.models.Response;
-import com.wordnik.swagger.models.Swagger;
-import com.wordnik.swagger.models.auth.SecuritySchemeDefinition;
-import com.wordnik.swagger.models.parameters.BodyParameter;
-import com.wordnik.swagger.models.parameters.Parameter;
-import com.wordnik.swagger.models.properties.Property;
-import com.wordnik.swagger.models.properties.RefProperty;
-import com.wordnik.swagger.util.Json;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.io.IOException;
-import java.util.*;
-
 import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createAddOperation;
 import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createPatchDocument;
 import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createRemoveOperation;
 import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createReplaceOperation;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
+import com.amazonaws.service.apigateway.importer.impl.SchemaTransformer;
+import com.amazonaws.services.apigateway.model.Integration;
+import com.amazonaws.services.apigateway.model.IntegrationType;
+import com.amazonaws.services.apigateway.model.Method;
+import com.amazonaws.services.apigateway.model.MethodResponse;
+import com.amazonaws.services.apigateway.model.Model;
+import com.amazonaws.services.apigateway.model.PatchDocument;
+import com.amazonaws.services.apigateway.model.PutIntegrationInput;
+import com.amazonaws.services.apigateway.model.PutIntegrationResponseInput;
+import com.amazonaws.services.apigateway.model.PutMethodInput;
+import com.amazonaws.services.apigateway.model.PutMethodResponseInput;
+import com.amazonaws.services.apigateway.model.Resource;
+import com.amazonaws.services.apigateway.model.RestApi;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.inject.Inject;
+
+import io.swagger.models.Operation;
+import io.swagger.models.Path;
+import io.swagger.models.RefModel;
+import io.swagger.models.Response;
+import io.swagger.models.Swagger;
+import io.swagger.models.auth.SecuritySchemeDefinition;
+import io.swagger.models.parameters.BodyParameter;
+import io.swagger.models.parameters.Parameter;
+import io.swagger.models.properties.Property;
+import io.swagger.models.properties.RefProperty;
+import io.swagger.util.Json;
 
 public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter implements SwaggerApiImporter {
 
@@ -97,20 +118,20 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         return StringUtils.isNotBlank(title) ? title : fileName;
     }
 
-    private void createModels(RestApi api, Map<String, com.wordnik.swagger.models.Model> definitions, List<String> produces) {
+    private void createModels(RestApi api, Map<String, io.swagger.models.Model> definitions, List<String> produces) {
         if (definitions == null) {
             return;
         }
 
-        for (Map.Entry<String, com.wordnik.swagger.models.Model> entry : definitions.entrySet()) {
+        for (Map.Entry<String, io.swagger.models.Model> entry : definitions.entrySet()) {
             final String modelName = entry.getKey();
-            final com.wordnik.swagger.models.Model model = entry.getValue();
+            final io.swagger.models.Model model = entry.getValue();
 
             createModel(api, modelName, model, definitions, getProducesContentType(produces, emptyList()));
         }
     }
 
-    private void createModel(RestApi api, String modelName, com.wordnik.swagger.models.Model model, Map<String, com.wordnik.swagger.models.Model> definitions, String modelContentType) {
+    private void createModel(RestApi api, String modelName, io.swagger.models.Model model, Map<String, io.swagger.models.Model> definitions, String modelContentType) {
         LOG.info(format("Creating model for api id %s with name %s", api.getId(), modelName));
 
         createModel(api, modelName, model.getDescription(), generateSchema(model, modelName, definitions), modelContentType);
@@ -191,6 +212,7 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         addOp(ops, "delete", path.getDelete());
         addOp(ops, "options", path.getOptions());
         addOp(ops, "patch", path.getPatch());
+        addOp(ops, "head", path.getHead());
 
         return ops;
     }
@@ -290,6 +312,7 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
     private String getAuthorizationType(Operation op) {
         String authType = "NONE";
         if (op.getVendorExtensions() != null) {
+//           ObjectNode node = op.getVendorExtensions().get(EXTENSION_AUTH);
             HashMap<String, String> authExtension = (HashMap<String, String>) op.getVendorExtensions().get(EXTENSION_AUTH);
 
             if (authExtension != null) {
@@ -322,11 +345,11 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         return false;
     }
 
-    private String generateSchema(Property model, String modelName, Map<String, com.wordnik.swagger.models.Model> definitions) {
+    private String generateSchema(Property model, String modelName, Map<String, io.swagger.models.Model> definitions) {
         return generateSchemaString(model, modelName, definitions);
     }
 
-    private String generateSchemaString(Object model, String modelName, Map<String, com.wordnik.swagger.models.Model> definitions) {
+    private String generateSchemaString(Object model, String modelName, Map<String, io.swagger.models.Model> definitions) {
         try {
             String modelSchema = Json.mapper().writeValueAsString(model);
             String models = Json.mapper().writeValueAsString(definitions);
@@ -342,12 +365,12 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         }
     }
 
-    private String generateSchema(com.wordnik.swagger.models.Model model, String modelName, Map<String, com.wordnik.swagger.models.Model> definitions) {
+    private String generateSchema(io.swagger.models.Model model, String modelName, Map<String, io.swagger.models.Model> definitions) {
         return generateSchemaString(model, modelName, definitions);
     }
 
     private Optional<String> getInputModel(BodyParameter p) {
-        com.wordnik.swagger.models.Model model = p.getSchema();
+        io.swagger.models.Model model = p.getSchema();
 
         if (model instanceof RefModel) {
             String modelName = ((RefModel) model).getSimpleRef();   // assumption: complex ref?
@@ -383,14 +406,14 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         createResources(api, rootResourceId, basePath, apiProduces, paths, false);
     }
 
-    private void updateModels(RestApi api, Map<String, com.wordnik.swagger.models.Model> definitions, List<String> apiProduces) {
+    private void updateModels(RestApi api, Map<String, io.swagger.models.Model> definitions, List<String> apiProduces) {
         if (definitions == null) {
             return;
         }
 
-        for (Map.Entry<String, com.wordnik.swagger.models.Model> entry : definitions.entrySet()) {
+        for (Map.Entry<String, io.swagger.models.Model> entry : definitions.entrySet()) {
             final String modelName = entry.getKey();
-            final com.wordnik.swagger.models.Model model = entry.getValue();
+            final io.swagger.models.Model model = entry.getValue();
 
             if (getModel(api, modelName).isPresent()) {
                 updateModel(api, modelName, model);
@@ -400,7 +423,7 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         }
     }
 
-    private void updateModel(RestApi api, String modelName, com.wordnik.swagger.models.Model model) {
+    private void updateModel(RestApi api, String modelName, io.swagger.models.Model model) {
         LOG.info(format("Updating model for api id %s and model name %s", api.getId(), modelName));
         updateModel(api, modelName, generateSchema(model, modelName, swagger.getDefinitions()));
     }
