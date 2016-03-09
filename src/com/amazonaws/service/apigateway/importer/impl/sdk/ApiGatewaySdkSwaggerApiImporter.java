@@ -639,7 +639,6 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
     // todo: check this logic for apis/methods producing multiple content-types
     // note: assumption - models in an api will always use one of the api "produces" content types, favoring application/json. models created from operation responses may use the operation "produces" content type
     private String getProducesContentType(List<String> apiProduces, List<String> methodProduces) {
-
         if (methodProduces != null && !methodProduces.isEmpty()) {
             if (methodProduces.stream().anyMatch(t -> t.equalsIgnoreCase(DEFAULT_PRODUCES_CONTENT_TYPE))) {
                 return DEFAULT_PRODUCES_CONTENT_TYPE;
