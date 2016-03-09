@@ -49,6 +49,7 @@ import com.amazonaws.services.apigateway.model.PutMethodInput;
 import com.amazonaws.services.apigateway.model.PutMethodResponseInput;
 import com.amazonaws.services.apigateway.model.Resource;
 import com.amazonaws.services.apigateway.model.RestApi;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 
@@ -268,8 +269,11 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
             return;
         }
 
-        HashMap<String, HashMap> integ =
-                (HashMap<String, HashMap>) vendorExtensions.get(EXTENSION_INTEGRATION);
+        ObjectMapper mapper = new ObjectMapper();
+       
+        
+        HashMap<String, HashMap> integ = (HashMap<String, HashMap>) mapper.convertValue(vendorExtensions.get(EXTENSION_INTEGRATION), Map.class);
+              
 
         IntegrationType type = IntegrationType.valueOf(getStringValue(integ.get("type")).toUpperCase());
 
@@ -312,8 +316,11 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
     private String getAuthorizationType(Operation op) {
         String authType = "NONE";
         if (op.getVendorExtensions() != null) {
+            ObjectMapper mapper = new ObjectMapper();
+            
+            HashMap<String, String> authExtension = (HashMap<String, String>) mapper.convertValue(op.getVendorExtensions().get(EXTENSION_AUTH), Map.class);
 //           ObjectNode node = op.getVendorExtensions().get(EXTENSION_AUTH);
-            HashMap<String, String> authExtension = (HashMap<String, String>) op.getVendorExtensions().get(EXTENSION_AUTH);
+//            HashMap<String, String> authExtension = (HashMap<String, String>) op.getVendorExtensions().get(EXTENSION_AUTH);
 
             if (authExtension != null) {
                 authType = authExtension.get("type").toUpperCase();
