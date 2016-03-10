@@ -50,7 +50,6 @@ import com.amazonaws.services.apigateway.model.PutMethodResponseInput;
 import com.amazonaws.services.apigateway.model.Resource;
 import com.amazonaws.services.apigateway.model.RestApi;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 
 import io.swagger.models.Operation;
@@ -319,8 +318,6 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
             ObjectMapper mapper = new ObjectMapper();
             
             HashMap<String, String> authExtension = (HashMap<String, String>) mapper.convertValue(op.getVendorExtensions().get(EXTENSION_AUTH), Map.class);
-//           ObjectNode node = op.getVendorExtensions().get(EXTENSION_AUTH);
-//            HashMap<String, String> authExtension = (HashMap<String, String>) op.getVendorExtensions().get(EXTENSION_AUTH);
 
             if (authExtension != null) {
                 authType = authExtension.get("type").toUpperCase();
