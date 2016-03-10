@@ -14,10 +14,44 @@
  */
 package com.amazonaws.service.apigateway.importer.impl.sdk;
 
+import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createAddOperation;
+import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createPatchDocument;
+import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createRemoveOperation;
+import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createReplaceOperation;
+import static java.lang.String.format;
+import static java.util.Collections.emptyList;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
 import com.amazonaws.service.apigateway.importer.impl.SchemaTransformer;
-import com.amazonaws.services.apigateway.model.*;
+import com.amazonaws.services.apigateway.model.Integration;
+import com.amazonaws.services.apigateway.model.IntegrationType;
+import com.amazonaws.services.apigateway.model.Method;
+import com.amazonaws.services.apigateway.model.MethodResponse;
+import com.amazonaws.services.apigateway.model.Model;
+import com.amazonaws.services.apigateway.model.PatchDocument;
+import com.amazonaws.services.apigateway.model.PutIntegrationInput;
+import com.amazonaws.services.apigateway.model.PutIntegrationResponseInput;
+import com.amazonaws.services.apigateway.model.PutMethodInput;
+import com.amazonaws.services.apigateway.model.PutMethodResponseInput;
+import com.amazonaws.services.apigateway.model.Resource;
+import com.amazonaws.services.apigateway.model.RestApi;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+
 import io.swagger.models.Operation;
 import io.swagger.models.Path;
 import io.swagger.models.RefModel;
@@ -29,19 +63,6 @@ import io.swagger.models.parameters.Parameter;
 import io.swagger.models.properties.Property;
 import io.swagger.models.properties.RefProperty;
 import io.swagger.util.Json;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.io.IOException;
-import java.util.*;
-
-import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createAddOperation;
-import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createPatchDocument;
-import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createRemoveOperation;
-import static com.amazonaws.service.apigateway.importer.util.PatchUtils.createReplaceOperation;
-import static java.lang.String.format;
-import static java.util.Collections.emptyList;
 
 public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter implements SwaggerApiImporter {
 
@@ -191,6 +212,7 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
         addOp(ops, "delete", path.getDelete());
         addOp(ops, "options", path.getOptions());
         addOp(ops, "patch", path.getPatch());
+        addOp(ops, "head", path.getHead());
 
         return ops;
     }
@@ -246,8 +268,11 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
             return;
         }
 
-        HashMap<String, HashMap> integ =
-                (HashMap<String, HashMap>) vendorExtensions.get(EXTENSION_INTEGRATION);
+        ObjectMapper mapper = new ObjectMapper();
+       
+        
+        HashMap<String, HashMap> integ = (HashMap<String, HashMap>) mapper.convertValue(vendorExtensions.get(EXTENSION_INTEGRATION), Map.class);
+              
 
         IntegrationType type = IntegrationType.valueOf(getStringValue(integ.get("type")).toUpperCase());
 
@@ -290,7 +315,9 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
     private String getAuthorizationType(Operation op) {
         String authType = "NONE";
         if (op.getVendorExtensions() != null) {
-            HashMap<String, String> authExtension = (HashMap<String, String>) op.getVendorExtensions().get(EXTENSION_AUTH);
+            ObjectMapper mapper = new ObjectMapper();
+            
+            HashMap<String, String> authExtension = (HashMap<String, String>) mapper.convertValue(op.getVendorExtensions().get(EXTENSION_AUTH), Map.class);
 
             if (authExtension != null) {
                 authType = authExtension.get("type").toUpperCase();
@@ -609,7 +636,6 @@ public class ApiGatewaySdkSwaggerApiImporter extends ApiGatewaySdkApiImporter im
     // todo: check this logic for apis/methods producing multiple content-types
     // note: assumption - models in an api will always use one of the api "produces" content types, favoring application/json. models created from operation responses may use the operation "produces" content type
     private String getProducesContentType(List<String> apiProduces, List<String> methodProduces) {
-
         if (methodProduces != null && !methodProduces.isEmpty()) {
             if (methodProduces.stream().anyMatch(t -> t.equalsIgnoreCase(DEFAULT_PRODUCES_CONTENT_TYPE))) {
                 return DEFAULT_PRODUCES_CONTENT_TYPE;

@@ -14,17 +14,19 @@
  */
 package com.amazonaws.service.apigateway.importer.impl;
 
-import com.amazonaws.service.apigateway.importer.SwaggerApiFileImporter;
-import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
-import com.google.inject.Inject;
-import io.swagger.models.Swagger;
-import io.swagger.parser.SwaggerParser;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import static java.lang.String.format;
 
 import java.io.File;
 
-import static java.lang.String.format;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.amazonaws.service.apigateway.importer.SwaggerApiFileImporter;
+import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
+import com.google.inject.Inject;
+
+import io.swagger.models.Swagger;
+import io.swagger.parser.SwaggerParser;
 
 public class ApiGatewaySwaggerFileImporter implements SwaggerApiFileImporter {
     private static final Log LOG = LogFactory.getLog(ApiGatewaySwaggerFileImporter.class);
